@@ -1,15 +1,15 @@
 {
-    "short_name": "MyPWA",
-    "name": "My Progressive Web App",
+    "short_name": "칵테일 레시피 찾기",
+    "name": "내 술들로 만드는 칵테일",
     "icons": [
       {
-        "src": "/icon-192x192.png",
-        "type": "image/png",
+        "src": "/icon.webp",
+        "type": "image/webp",
         "sizes": "192x192"
       },
       {
-        "src": "/icon-512x512.png",
-        "type": "image/png",
+        "src": "/icon.webp",
+        "type": "image/webp",
         "sizes": "512x512"
       }
     ],
@@ -17,5 +17,5 @@
     "background_color": "#ffffff",
     "display": "standalone",
     "scope": "/",
-    "theme_color": "#000000"
+    "theme_color": "#ff6600"
   }
