@@ -1,7 +1,10 @@
+import '@mantine/core/styles.css';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import localFont from 'next/font/local';
+import ProviderLayout from "./components/layouts/ProviderLayouts";
 import ServiceWorkerLayout from "./components/layouts/serviceWorker";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,6 +15,16 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+
+const pixel = localFont({
+  src: '../public/fonts/PixelGame.otf',
+  display: "swap",
+  variable: "--font-pixel"
+});
+
+console.log(pixel)
+
 
 export const metadata: Metadata = {
   title: "내 술들로 만드는 칵테일",
@@ -55,12 +68,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head></head>
+      <head>
+        {/* Favicon 설정 */}
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icon.webp" />
+        <meta name="theme-color" content="#ffffff" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased ${pixel.variable}`}
       >
         <ServiceWorkerLayout>
-          {children}
+          <ProviderLayout>
+            {children}
+          </ProviderLayout>
         </ServiceWorkerLayout>
       </body>
     </html>
