@@ -9,9 +9,19 @@ jobs:
   code-review:
     runs-on: ubuntu-latest
     steps:
+      # 요청 간 간격 설정 스크립트 실행 (모델에 따라 설정)
+      - name: Throttle Requests
+        run: |
+          echo "Throttling requests to match model policy"
+          # gpt-4o-mini 또는 gpt-3.5-turbo: 20초에 1건
+          sleep 20
+          # text-embedding-3-small: 0.6초에 1건
+          # sleep 0.6
+
+      # ChatGPT-CodeReview 실행
       - uses: anc95/ChatGPT-CodeReview@main
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           LANGUAGE: Korean
-          MODEL: gpt-3.5-turbo
+          MODEL: gpt-4o-mini
