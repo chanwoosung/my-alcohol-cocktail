@@ -1,0 +1,31 @@
+{
+  "name": "my-alchol-cocktail",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.1.3",
+    "next-pwa": "^5.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/next-pwa": "^5.6.9",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@8.3.0+sha512.c114bc6a9fd23f106a6d4333714364a00d2cb8baa4f41a8c96f8bc74cd8546e87050382a54660b7398d0e96c37baa55cfbce3326f376198993582b9b6a858fb5"
+}
