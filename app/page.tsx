@@ -1,5 +1,6 @@
-import { Flex, Image, Title } from "@mantine/core";
+import { Button, Flex, Image, Title } from "@mantine/core";
 import NextImage from 'next/image';
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -9,6 +10,10 @@ export default function Home() {
         <Title className="font-pixel" order={2} mx="auto">
           My Cocktail Book 
         </Title>
+        <Flex gap='lg'>
+            <Button component={Link} href={'/alcohol-list'}>내 술 목록</Button>
+            <Button component={Link} href={'/search'}>칵테일 재료로 찾기</Button>
+        </Flex>
       </Flex>
     </Flex>
   );
