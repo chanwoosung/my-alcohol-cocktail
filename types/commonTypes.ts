@@ -3,5 +3,5 @@ export type ServerComponentProps = {
 	searchParams: SearchParams;
 };
 
-export type Params = Promise<{ slug: string }>
+export type Params = Promise<{ id: string }>
 export type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>

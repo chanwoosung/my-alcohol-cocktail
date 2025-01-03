@@ -17,3 +17,20 @@ export const fetchCocktails = async (searchValue: string | string[] | undefined)
     return [];
   }
 };
+
+export const fetchCocktailRecipe = async (cocktailId: string | string[] | undefined) => {
+  if (!cocktailId || typeof cocktailId === 'string' && cocktailId.trim() === '') {
+    console.log('Invalid searchValue:', cocktailId);
+    return [];
+  }
+
+  try {
+    const { data } = await cocktailDBClient.get<CocktailSearchResponse>('/lookup.php', {
+      params: { i: cocktailId },
+    });
+    return data;
+  } catch (error) {
+    console.error('API Error:', error);
+    return [];
+  }
+};

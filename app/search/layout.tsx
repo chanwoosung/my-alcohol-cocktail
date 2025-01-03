@@ -18,7 +18,7 @@ const SearchLayout = (props: {
   }) => {
     const params = use(props.params)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { slug } = params
+    const { id: slug } = params
 
     return (
         props.children
