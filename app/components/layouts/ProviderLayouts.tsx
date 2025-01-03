@@ -1,11 +1,14 @@
 import { MantineProvider } from "@mantine/core"
 import { PropsWithChildren } from "react"
+import QueryClientProviderLayout from "./QueryClientProviderLayout"
 
 const ProviderLayout = ({children}:PropsWithChildren) => {
     return (
-        <MantineProvider>
-            {children}
-        </MantineProvider>
+        <QueryClientProviderLayout>
+            <MantineProvider>
+                {children}
+            </MantineProvider>
+        </QueryClientProviderLayout>
     )
 }
 
