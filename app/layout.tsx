@@ -23,9 +23,6 @@ const pixel = localFont({
   variable: "--font-pixel"
 });
 
-console.log(pixel)
-
-
 export const metadata: Metadata = {
   title: "내 술들로 만드는 칵테일",
   description: "내가 보유한 술들로 만들 수 있는 칵테일 리스트 만들어주는 사이트입니다.",
