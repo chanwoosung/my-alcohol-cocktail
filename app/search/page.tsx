@@ -4,9 +4,10 @@ import SearchPageContent from "./searchPageContent";
 
 
 const SearchPage = async ({ searchParams }: ServerComponentProps) => {
-    const { queryText } = await searchParams;
+    const { searchValue } = await searchParams;
+    console.log(searchValue)
     return (
-        <SearchPageContent queryText={String(queryText)} />
+        <SearchPageContent searchValue={(searchValue)} />
     )
 }
 
