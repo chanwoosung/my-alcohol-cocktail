@@ -1,5 +1,6 @@
 'use client';
 
+import { convertToOzWithMl } from "@/lib/convertUtils";
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
 import { Badge, Card, Grid, Group, Image, Text, Title } from "@mantine/core";
 import { HydrationBoundary, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -41,7 +42,7 @@ const CocktailDetail = ({ slug }: { slug: string }) => {
   const cocktail = data.drinks[0];
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
+    <Card shadow="sm" padding="lg" radius="md" my={'md'} withBorder>
       <Grid>
         <Grid.Col span={12} >
           <Image
@@ -84,7 +85,7 @@ const CocktailDetail = ({ slug }: { slug: string }) => {
           .filter(({ ingredient }) => ingredient)
           .map(({ ingredient, measure }, idx) => (
             <Text size="sm" key={idx}>
-              {measure ? `${measure} ` : ""} {ingredient}
+              {measure ? `${convertToOzWithMl(measure)} ` : ""} {ingredient}
             </Text>
           ))}
       </Group>

@@ -4,7 +4,7 @@ import { CocktailSearchResponse } from "@/types/cocktailTypes";
 import { Box, Flex, Image, Input, Text, Title } from "@mantine/core";
 import { HydrationBoundary, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -63,6 +63,7 @@ const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
 };
 
 const DrinksList = ({ searchValue }: { searchValue: string | string[] | undefined }) => {
+  const pathname = usePathname();
   const { data, isLoading } = useQuery<CocktailSearchResponse>({
     queryKey: ['search', 'cocktailName', searchValue],
     enabled: !!searchValue, // searchValue가 있을 때만 쿼리 실행
@@ -74,14 +75,14 @@ const DrinksList = ({ searchValue }: { searchValue: string | string[] | undefine
     <Flex gap='md' 
     direction="column" w={'90%'} mx={'auto'}>
       {data?.drinks?.map((elem) => (
-        <Link key={elem.idDrink} href={window.location.pathname+`/${elem.idDrink}`}>
+        <Link key={elem.idDrink} href={pathname+`/${elem.idDrink}`}>
           <Flex styles={{
             root: {
               border: '2px solid',
               borderRadius: '8px',
             }
           }}>
-            <Image w={120} h={120}  src={elem.strDrinkThumb} alt={elem.strDrink+'_thumbnail'} 
+            <Image w={120} h={120}  src={elem.strDrinkThumb+'/preview'} alt={elem.strDrink+'_thumbnail'} 
               loading="lazy"
               styles={{
                 root: {

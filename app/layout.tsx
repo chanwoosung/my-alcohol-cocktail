@@ -1,4 +1,5 @@
 import '@mantine/core/styles.css';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from 'next/font/local';
@@ -70,6 +71,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icon.webp" />
         <meta name="theme-color" content="#ffffff" />
+        <link rel="manifest" href='/manifest.json' />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased ${pixel.variable}`}
@@ -77,6 +79,7 @@ export default function RootLayout({
         <ServiceWorkerLayout>
           <ProviderLayout>
             {children}
+            <SpeedInsights />
           </ProviderLayout>
         </ServiceWorkerLayout>
       </body>
