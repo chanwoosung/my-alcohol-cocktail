@@ -1,7 +1,7 @@
 'use client';
 
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
-import { Box, Input } from "@mantine/core";
+import { Box, Flex, Image, Input, Text, Title } from "@mantine/core";
 import { HydrationBoundary, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,7 +35,9 @@ const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
   return (
     <QueryClientProvider client={queryClient}>
       <HydrationBoundary state={dehydratedState}>
-        <Box component="form" w="90%" mx="auto" p="md" onSubmit={handleSubmit(onSubmit)}>
+        <Box component="form" w="90%" mx="auto" py="md" pos={'sticky'} top={0} onSubmit={handleSubmit(onSubmit)} style={{
+          backgroundColor:'#ffffff'
+        }}>
           <Input.Wrapper error={errors.searchValue?.message}>
             <Input
               {...register('searchValue', {
@@ -46,6 +48,7 @@ const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
                   return true;
                 },
               })}
+              size="lg"
               error={errors.searchValue?.message}
               enterKeyHint="search"
               inputMode="search"
@@ -64,15 +67,37 @@ const DrinksList = ({ searchValue }: { searchValue: string | string[] | undefine
     queryKey: ['search', 'cocktailName', searchValue],
     enabled: !!searchValue, // searchValue가 있을 때만 쿼리 실행
   });
-
+  console.log(data)
   if (isLoading) return <div>Loading...</div>;
 
   return (
-    <ul>
+    <Flex gap='md' 
+    direction="column" w={'90%'} mx={'auto'}>
       {data?.drinks?.map((elem) => (
-        <Link key={elem.idDrink} href={window.location.pathname+`/${elem.idDrink}`}>{elem.strDrink}</Link>
+        <Link key={elem.idDrink} href={window.location.pathname+`/${elem.idDrink}`}>
+          <Flex styles={{
+            root: {
+              border: '2px solid',
+              borderRadius: '8px',
+            }
+          }}>
+            <Image w={120} h={120}  src={elem.strDrinkThumb} alt={elem.strDrink+'_thumbnail'} 
+              loading="lazy"
+              styles={{
+                root: {
+                  borderTopLeftRadius:'6px',
+                  borderBottomLeftRadius:'6px'
+                }
+              }}
+            />
+            <Box p={8}>
+              <Title order={4}>{elem.strDrink}</Title>
+              <Text lineClamp={3}>{elem.strInstructions}</Text>
+            </Box>
+          </Flex>
+        </Link>
       ))}
-    </ul>
+    </Flex>
   );
 };
 
