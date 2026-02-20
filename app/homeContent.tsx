@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Box, Button, Card, Flex, Grid, Group, Image, Loader, Text, Title } from '@mantine/core';
-import Link from 'next/link';
-import { useInventory } from '@/hooks/useInventory';
 import { fetchCocktailsByMultipleIngredients } from '@/apis/cocktailDB';
 import { searchLocalRecipes } from '@/data/localRecipes';
-import { CocktailFilterItem, CocktailRecipe } from '@/types/cocktailTypes';
+import { useInventory } from '@/hooks/useInventory';
+import { Box, Button, Card, Flex, Grid, Group, Image, Loader, Text, Title } from '@mantine/core';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface CombinedCocktail {
   id: string;
@@ -25,9 +24,9 @@ export default function HomeContent() {
 
     const loadRecipes = async () => {
       setLoading(true);
-      
+
       const ingredientNames = items.map(item => item.nameEn);
-      
+
       const localRecipes = searchLocalRecipes(ingredientNames).map(recipe => ({
         id: recipe.idDrink,
         name: recipe.strDrink,
@@ -48,7 +47,7 @@ export default function HomeContent() {
 
       const combined = [...localRecipes, ...apiRecipes];
       const unique = Array.from(new Map(combined.map(c => [c.id, c])).values());
-      
+
       setRecipes(unique.slice(0, 8));
       setLoading(false);
     };
@@ -67,13 +66,7 @@ export default function HomeContent() {
   return (
     <Box p="xl">
       <Flex justify="center" direction="column" align="center" mb="xl">
-        <Image
-          width={80}
-          height={80}
-          src="/icon.webp"
-          alt="main_logo"
-          mb="md"
-        />
+        <Image width={80} height={80} src="/icon.webp" alt="main_logo" mb="md" />
         <Title order={2} mb="lg">
           My Cocktail Book
         </Title>
@@ -91,16 +84,18 @@ export default function HomeContent() {
         <Box mb="xl">
           <Group justify="space-between" align="center" mb="md">
             <Title order={4}>내 술로 만들 수 있는 칵테일</Title>
-            <Text size="sm" c="dimmed">{items.length}개 재료</Text>
+            <Text size="sm" c="dimmed">
+              {items.length}개 재료
+            </Text>
           </Group>
-          
+
           {loading ? (
             <Flex justify="center" py="xl">
               <Loader />
             </Flex>
           ) : recipes.length > 0 ? (
             <Grid>
-              {recipes.map((recipe) => (
+              {recipes.map(recipe => (
                 <Grid.Col key={recipe.id} span={{ base: 6, sm: 4, md: 3 }}>
                   <Card
                     component={Link}
@@ -109,8 +104,7 @@ export default function HomeContent() {
                     padding="sm"
                     radius="md"
                     withBorder
-                    style={{ textDecoration: 'none' }}
-                  >
+                    style={{ textDecoration: 'none' }}>
                     <Card.Section>
                       <Image
                         src={recipe.image}
@@ -139,7 +133,9 @@ export default function HomeContent() {
 
       {items.length === 0 && (
         <Box ta="center" py="xl">
-          <Text size="lg" mb="md">술을 추가해서 나만의 칵테일을 찾아보세요!</Text>
+          <Text size="lg" mb="md">
+            술을 추가해서 나만의 칵테일을 찾아보세요!
+          </Text>
           <Button component={Link} href="/inventory" size="lg">
             지금 시작하기
           </Button>

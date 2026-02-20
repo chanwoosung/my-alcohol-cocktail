@@ -442,17 +442,15 @@ export const searchLocalRecipes = (ingredients: string[]): CocktailRecipe[] => {
 
   const normalizedIngredients = ingredients.map(i => i.toLowerCase());
 
-  return localCocktailRecipes.filter((recipe) => {
+  return localCocktailRecipes.filter(recipe => {
     const recipeIngredients: string[] = [];
     for (let i = 1; i <= 15; i++) {
-      const ingredient = (recipe as Record<string, unknown>)[`strIngredient${i}`];
+      const ingredient = (recipe as unknown as Record<string, unknown>)[`strIngredient${i}`];
       if (ingredient) {
         recipeIngredients.push(String(ingredient).toLowerCase());
       }
     }
 
-    return normalizedIngredients.some((normalized) =>
-      recipeIngredients.some((ri) => ri.includes(normalized))
-    );
+    return normalizedIngredients.some(normalized => recipeIngredients.some(ri => ri.includes(normalized)));
   });
 };
