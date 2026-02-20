@@ -3,8 +3,7 @@
 import { convertToOzWithMl } from "@/lib/convertUtils";
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
 import { Badge, Card, Grid, Group, Image, Text, Title } from "@mantine/core";
-import { HydrationBoundary, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { HydrationBoundary, useQuery } from "@tanstack/react-query";
 
 type Props = {
   dehydratedState: unknown;
@@ -12,14 +11,11 @@ type Props = {
 };
 
 const SearchDetailContent = ({ dehydratedState, slug }: Props) => {
-  const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <QueryClientProvider client={queryClient}>
       <HydrationBoundary state={dehydratedState}>
         <CocktailDetail slug={slug} />
       </HydrationBoundary>
-    </QueryClientProvider>
   );
 };
 

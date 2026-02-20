@@ -2,10 +2,9 @@
 
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
 import { Box, Flex, Image, Input, Text, Title } from "@mantine/core";
-import { HydrationBoundary, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { HydrationBoundary, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 type Props = {
@@ -18,7 +17,6 @@ type Form = {
 };
 
 const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
-  const [queryClient] = useState(() => new QueryClient()); // 클라이언트에서 QueryClient 생성
   const router = useRouter();
 
   const { register, handleSubmit, formState: { errors } } = useForm<Form>({
@@ -33,7 +31,6 @@ const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
       <HydrationBoundary state={dehydratedState}>
         <Box component="form" w="90%" mx="auto" py="md" pos={'sticky'} top={0} onSubmit={handleSubmit(onSubmit)} style={{
           backgroundColor:'#ffffff'
@@ -58,7 +55,6 @@ const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
         {/* React Query를 사용하여 데이터 처리 */}
         <DrinksList searchValue={searchValue} />
       </HydrationBoundary>
-    </QueryClientProvider>
   );
 };
 

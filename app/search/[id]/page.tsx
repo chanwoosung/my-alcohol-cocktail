@@ -1,4 +1,4 @@
-import { fetchCocktailRecipe } from "@/apis/cocktailDB";
+import { fetchCocktailRecipe, getCocktailRecipe } from "@/apis/cocktailDB";
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
 import { Params } from "@/types/commonTypes";
 import { QueryClient, dehydrate } from "@tanstack/react-query";
@@ -14,12 +14,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (slug) {
     await queryClient.prefetchQuery({
       queryKey: ["search", "cocktailRecipe", slug],
-      queryFn: () => fetchCocktailRecipe(slug),
+      queryFn: () => getCocktailRecipe(slug),
     });
   }
 
   const cocktailData = queryClient.getQueryData<CocktailSearchResponse>(["search", "cocktailRecipe", slug]);
-  if (!cocktailData) {
+  if (!cocktailData?.drinks) {
     return {
       title: "칵테일 정보 없음",
       description: "해당 칵테일 정보를 찾을 수 없습니다.",

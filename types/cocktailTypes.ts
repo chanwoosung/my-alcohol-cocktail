@@ -9,6 +9,7 @@ export interface CocktailRecipe {
     strAlcoholic: string;
     strGlass: string;
     strInstructions: string;
+    strInstructionsKR: string | null;
     strInstructionsES: string | null;
     strInstructionsDE: string | null;
     strInstructionsFR: string | null;
@@ -54,4 +55,14 @@ export interface CocktailRecipe {
 
 export type CocktailSearchResponse = {
     drinks: CocktailRecipe[]
+}
+
+export interface CocktailFilterItem {
+    idDrink: string;
+    strDrink: string;
+    strDrinkThumb: string;
+}
+
+export type CocktailFilterResponse = {
+    drinks: CocktailFilterItem[]
 }
