@@ -1,6 +1,7 @@
 'use client';
 
 import { client } from '@/apis/client';
+import { alcoholCategoryMappedKorean } from '@/constants/ingredient';
 import { searchLocalRecipes } from '@/data/localRecipes';
 import { useInventory } from '@/hooks/useInventory';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/lib/ingredientMatcher';
 import { getAvailableFromStaticData } from '@/lib/staticAvailableFallback';
 import { CocktailRecipe } from '@/types/cocktailTypes';
+import FallbackImage from '@/app/components/ui/FallbackImage';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -23,16 +25,28 @@ interface CocktailWithIngredients {
   ingredients?: string[];
 }
 
-const CACHE_KEY = 'availableCocktailsPageCache_v1';
+const CACHE_KEY = 'availableCocktailsPageCache_v3';
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
-const LEGACY_CACHE_PREFIXES = ['availableCocktailsCache_', 'availableCocktailsCache_v3_', 'homeAvailableCocktailsCache_'];
+const LEGACY_CACHE_PREFIXES = ['availableCocktailsCache_', 'availableCocktailsCache_v3_', 'availableCocktailsPageCache_v1_', 'homeAvailableCocktailsCache_'];
 
-const getCachedData = (key: string) => {
+const toNormalizedEnglishIngredient = (item: { name?: string; nameEn?: string }) => {
+  const mapped = item.name ? alcoholCategoryMappedKorean[item.name as keyof typeof alcoholCategoryMappedKorean] : '';
+  return (item.nameEn || mapped || item.name || '').toLowerCase().trim();
+};
+
+const getCachedData = (key: string, signature: string) => {
   try {
     const cached = localStorage.getItem(key);
     if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < CACHE_DURATION && Array.isArray(data) && data.length > 0) {
+      const parsed = JSON.parse(cached) as { data?: unknown; timestamp?: number; signature?: string };
+      if (
+        parsed.signature === signature
+        && typeof parsed.timestamp === 'number'
+        && Date.now() - parsed.timestamp < CACHE_DURATION
+        && Array.isArray(parsed.data)
+        && parsed.data.length > 0
+      ) {
+        const data = parsed.data;
         return data;
       }
     }
@@ -42,9 +56,9 @@ const getCachedData = (key: string) => {
   return null;
 };
 
-const setCachedData = (key: string, data: unknown) => {
+const setCachedData = (key: string, signature: string, data: unknown) => {
   try {
-    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+    localStorage.setItem(key, JSON.stringify({ data, signature, timestamp: Date.now() }));
   } catch (e) {
     console.error('Cache set error:', e);
   }
@@ -75,11 +89,8 @@ export default function AvailablePage() {
   const loadRecipes = useCallback(async () => {
     clearLegacyAvailableCaches();
 
-    const cacheKey = `${CACHE_KEY}_${items
-      .map(i => i.id)
-      .sort()
-      .join('_')}`;
-    const cached = getCachedData(cacheKey);
+    const cacheSignature = items.map(item => toNormalizedEnglishIngredient(item)).filter(Boolean).sort().join('|') || 'empty';
+    const cached = getCachedData(CACHE_KEY, cacheSignature);
     const hasCached = Array.isArray(cached) && cached.length > 0;
 
     if (hasCached) {
@@ -94,7 +105,7 @@ export default function AvailablePage() {
     setError(null);
 
     const userIngredients = items
-      .map(item => (item.nameEn || item.name || '').toLowerCase().trim())
+      .map(item => toNormalizedEnglishIngredient(item))
       .filter(Boolean);
     const userAlcoholIngredients = userIngredients.filter(ingredient => isAlcoholIngredient(ingredient));
     try {
@@ -171,7 +182,6 @@ export default function AvailablePage() {
             return required.every(ing => isIngredientAvailable(ing, userAlcoholIngredients));
           });
       }
-      console.log(apiRecipes);
       const allRecipes = [
         ...availableLocal.map(r => ({ ...r, source: 'local' as const })),
         ...availableCustom.map(r => ({ ...r, source: 'custom' as const })),
@@ -181,7 +191,7 @@ export default function AvailablePage() {
       const unique = Array.from(new Map(allRecipes.map(c => [c.id, c])).values());
 
       if (unique.length > 0) {
-        setCachedData(cacheKey, unique);
+        setCachedData(CACHE_KEY, cacheSignature, unique);
       }
       setRecipes(unique);
     } catch (error) {
@@ -279,7 +289,7 @@ export default function AvailablePage() {
               {recipes.map(recipe => (
                 <Link key={recipe.id} href={`/search/${recipe.id}`} style={{ textDecoration: 'none' }}>
                   <div className="card" style={{ padding: '0', overflow: 'hidden', cursor: 'pointer' }}>
-                    <img
+                    <FallbackImage
                       src={recipe.image}
                       alt={recipe.name}
                       style={{ width: '100%', height: '140px', objectFit: 'cover' }}

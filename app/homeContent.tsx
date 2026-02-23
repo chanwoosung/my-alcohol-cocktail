@@ -1,11 +1,13 @@
 'use client';
 
 import { client } from '@/apis/client';
+import { alcoholCategoryMappedKorean } from '@/constants/ingredient';
 import { searchLocalRecipes } from '@/data/localRecipes';
 import { useInventory } from '@/hooks/useInventory';
 import { getIngredientsFromCocktail, getRequiredOwnedIngredients, isAlcoholIngredient, isIngredientAvailable } from '@/lib/ingredientMatcher';
 import { getAvailableFromStaticData } from '@/lib/staticAvailableFallback';
 import { CocktailRecipe } from '@/types/cocktailTypes';
+import FallbackImage from '@/app/components/ui/FallbackImage';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 
@@ -14,18 +16,31 @@ interface CocktailWithIngredients {
   name: string;
   image: string;
   ingredients: string[];
+  source: 'local' | 'api' | 'custom';
 }
 
-const CACHE_KEY = 'homeAvailableCocktailsCache_v1';
+const CACHE_KEY = 'homeAvailableCocktailsCache_v4';
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
-const LEGACY_CACHE_PREFIXES = ['availableCocktailsCache_', 'availableCocktailsCache_v3_'];
+const LEGACY_CACHE_PREFIXES = ['availableCocktailsCache_', 'availableCocktailsCache_v3_', 'homeAvailableCocktailsCache_v1_', 'homeAvailableCocktailsCache_v2_'];
 
-const getCachedData = (key: string) => {
+const toNormalizedEnglishIngredient = (item: { name?: string; nameEn?: string }) => {
+  const mapped = item.name ? alcoholCategoryMappedKorean[item.name as keyof typeof alcoholCategoryMappedKorean] : '';
+  return (item.nameEn || mapped || item.name || '').toLowerCase().trim();
+};
+
+const getCachedData = (key: string, signature: string) => {
   try {
     const cached = localStorage.getItem(key);
     if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < CACHE_DURATION && Array.isArray(data) && data.length > 0) {
+      const parsed = JSON.parse(cached) as { data?: unknown; timestamp?: number; signature?: string };
+      if (
+        parsed.signature === signature
+        && typeof parsed.timestamp === 'number'
+        && Date.now() - parsed.timestamp < CACHE_DURATION
+        && Array.isArray(parsed.data)
+        && parsed.data.length > 0
+      ) {
+        const data = parsed.data;
         return data;
       }
     }
@@ -35,9 +50,9 @@ const getCachedData = (key: string) => {
   return null;
 };
 
-const setCachedData = (key: string, data: unknown) => {
+const setCachedData = (key: string, signature: string, data: unknown) => {
   try {
-    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+    localStorage.setItem(key, JSON.stringify({ data, signature, timestamp: Date.now() }));
   } catch (e) {
     console.error('Cache set error:', e);
   }
@@ -67,8 +82,8 @@ export default function HomeContent() {
   const loadRecipes = useCallback(async () => {
     clearLegacyHomeCaches();
 
-    const cacheKey = `${CACHE_KEY}_${items.map(i => i.id).sort().join('_')}`;
-    const cached = getCachedData(cacheKey);
+    const cacheSignature = items.map(item => toNormalizedEnglishIngredient(item)).filter(Boolean).sort().join('|') || 'empty';
+    const cached = getCachedData(CACHE_KEY, cacheSignature);
     const hasCached = Array.isArray(cached) && cached.length > 0;
     
     if (hasCached) {
@@ -80,7 +95,7 @@ export default function HomeContent() {
     }
 
     const userIngredients = items
-      .map(item => (item.nameEn || item.name || '').toLowerCase().trim())
+      .map(item => toNormalizedEnglishIngredient(item))
       .filter(Boolean);
     const userAlcoholIngredients = userIngredients.filter((ingredient) => isAlcoholIngredient(ingredient));
 
@@ -91,6 +106,7 @@ export default function HomeContent() {
           name: recipe.strDrink,
           image: recipe.strDrinkThumb,
           ingredients: getIngredientsFromCocktail(recipe as unknown as Record<string, unknown>),
+          source: 'local' as const,
         }));
 
       const availableLocal = localRecipes.filter(cocktail => {
@@ -109,6 +125,7 @@ export default function HomeContent() {
             name: r.name,
             image: r.image,
             ingredients: r.ingredients?.map((i: { name: string }) => i.name.toLowerCase()) || [],
+            source: 'custom' as const,
           }));
         } catch (error) {
           console.error('Failed to parse custom recipes:', error);
@@ -146,6 +163,7 @@ export default function HomeContent() {
             name: drink.strDrink,
             image: drink.strDrinkThumb,
             ingredients: getIngredientsFromCocktail(drink as unknown as Record<string, unknown>),
+            source: 'api' as const,
           }))
           .filter((cocktail) => {
             const required = getRequiredOwnedIngredients(cocktail.ingredients);
@@ -156,10 +174,11 @@ export default function HomeContent() {
 
       const combined = [...availableLocal, ...availableCustom, ...apiRecipes];
       const unique = Array.from(new Map(combined.map(c => [c.id, c])).values());
-
-      const result = unique.slice(0, 4);
+      const sourceRank = { api: 0, local: 1, custom: 2 } as const;
+      const sorted = [...unique].sort((a, b) => sourceRank[a.source] - sourceRank[b.source]);
+      const result = sorted.slice(0, 4);
       if (result.length > 0) {
-        setCachedData(cacheKey, result);
+        setCachedData(CACHE_KEY, cacheSignature, result);
       }
       setRecipes(result);
     } catch (error) {
@@ -281,7 +300,7 @@ export default function HomeContent() {
                     style={{ textDecoration: 'none' }}
                   >
                     <div className="card" style={{ padding: '0', overflow: 'hidden', cursor: 'pointer' }}>
-                      <img
+                      <FallbackImage
                         src={recipe.image}
                         alt={recipe.name}
                         style={{ width: '100%', height: '140px', objectFit: 'cover' }}

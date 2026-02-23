@@ -4,6 +4,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { isIgnoredIngredient, isIngredientAvailable } from '@/lib/ingredientMatcher';
 import { convertToOzWithMl } from '@/lib/convertUtils';
 import { CocktailSearchResponse } from '@/types/cocktailTypes';
+import FallbackImage from '@/app/components/ui/FallbackImage';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -75,7 +76,7 @@ const SearchDetailContent = ({ initialData }: Props) => {
 
       <main className="container" style={{ padding: '1.5rem 1rem' }}>
         <div className="card" style={{ overflow: 'hidden' }}>
-          <img
+          <FallbackImage
             src={cocktail.strDrinkThumb}
             alt={cocktail.strDrink}
             style={{ width: '100%', maxHeight: '300px', objectFit: 'cover' }}

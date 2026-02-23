@@ -1,6 +1,7 @@
 'use client';
 
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
+import FallbackImage from '@/app/components/ui/FallbackImage';
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -106,7 +107,7 @@ const DrinksList = ({ initialData, searchValue }: { initialData: CocktailSearchR
             className="card"
             style={{ padding: '0', textDecoration: 'none', overflow: 'hidden' }}
           >
-            <img
+            <FallbackImage
               src={elem.strDrinkThumb + '/preview'}
               alt={elem.strDrink}
               style={{ width: '100%', height: '160px', objectFit: 'cover' }}

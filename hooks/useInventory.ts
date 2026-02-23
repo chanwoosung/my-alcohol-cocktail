@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { InventoryItem } from '@/types/inventoryTypes';
+import { alcoholCategoryMappedKorean } from '@/constants/ingredient';
 
 const STORAGE_KEY = 'cocktail-inventory';
 
@@ -13,20 +14,20 @@ export const useInventory = () => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
+        const parsed: unknown = JSON.parse(stored);
         const normalized = Array.isArray(parsed)
           ? parsed
-              .map((raw): InventoryItem | null => {
+              .map((raw, index): InventoryItem | null => {
                 if (!raw || typeof raw !== 'object') return null;
                 const item = raw as Partial<InventoryItem> & { id?: unknown; name?: unknown; nameEn?: unknown; category?: unknown };
-                const id = typeof item.id === 'string' && item.id ? item.id : `legacy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-                const name = typeof item.name === 'string' ? item.name : '';
-                const nameEnCandidate =
-                  typeof item.nameEn === 'string' && item.nameEn.trim()
-                    ? item.nameEn
-                    : typeof item.name === 'string'
-                      ? item.name
-                      : '';
+                const id = typeof item.id === 'string' && item.id ? item.id : `legacy-${Date.now()}-${index}`;
+                const name = typeof item.name === 'string' ? item.name.trim() : '';
+                const rawNameEn = typeof item.nameEn === 'string' ? item.nameEn.trim() : '';
+                const mappedEnglishFromName = name ? alcoholCategoryMappedKorean[name as keyof typeof alcoholCategoryMappedKorean] : '';
+                const mappedEnglishFromNameEn = rawNameEn
+                  ? alcoholCategoryMappedKorean[rawNameEn as keyof typeof alcoholCategoryMappedKorean]
+                  : '';
+                const nameEnCandidate = mappedEnglishFromName || mappedEnglishFromNameEn || rawNameEn;
                 const category =
                   item.category === 'base' || item.category === 'liqueur' || item.category === 'mixer' || item.category === 'other'
                     ? item.category

@@ -3,6 +3,7 @@
 import { Grid, Group, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useEffect, useState } from 'react';
+import FallbackImage from '@/app/components/ui/FallbackImage';
 
 interface CustomRecipe {
   id: string;
@@ -149,7 +150,7 @@ export default function RecipesPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
             {recipes.map(recipe => (
               <div key={recipe.id} className="card" style={{ padding: '0', overflow: 'hidden' }}>
-                <img
+                <FallbackImage
                   src={recipe.image}
                   alt={recipe.name}
                   style={{ width: '100%', height: '160px', objectFit: 'cover' }}
