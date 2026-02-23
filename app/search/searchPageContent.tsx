@@ -1,14 +1,12 @@
 'use client';
 
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
-import { Box, Flex, Image, Input, Text, Title } from "@mantine/core";
-import { HydrationBoundary, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 type Props = {
-  dehydratedState: unknown; // 서버에서 전달된 직렬화된 상태
+  initialData: CocktailSearchResponse | null;
   searchValue: string | string[] | undefined;
 };
 
@@ -16,10 +14,10 @@ type Form = {
   searchValue: string | string[] | undefined;
 };
 
-const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
+const SearchPageContent = ({ initialData, searchValue }: Props) => {
   const router = useRouter();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Form>({
+  const { register, handleSubmit } = useForm<Form>({
     defaultValues: {
       searchValue,
     },
@@ -31,70 +29,90 @@ const SearchPageContent = ({ dehydratedState, searchValue }: Props) => {
   };
 
   return (
-      <HydrationBoundary state={dehydratedState}>
-        <Box component="form" w="90%" mx="auto" py="md" pos={'sticky'} top={0} onSubmit={handleSubmit(onSubmit)} style={{
-          backgroundColor:'#ffffff'
-        }}>
-          <Input.Wrapper error={errors.searchValue?.message}>
-            <Input
-              {...register('searchValue', {
-                validate: (value) => {
-                  if (!value || (typeof value === "string" && value.trim() === "")) {
-                    return "검색어를 입력해주세요.";
-                  }
-                  return true;
-                },
-              })}
-              size="lg"
-              error={errors.searchValue?.message}
-              enterKeyHint="search"
-              inputMode="search"
-            />
-          </Input.Wrapper>
-        </Box>
-        {/* React Query를 사용하여 데이터 처리 */}
-        <DrinksList searchValue={searchValue} />
-      </HydrationBoundary>
+    <div style={{ minHeight: '100vh' }}>
+      <header style={{
+        borderBottom: '1px solid var(--border)',
+        padding: '1rem',
+        background: 'var(--card)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+      }}>
+        <form onSubmit={handleSubmit(onSubmit)} className="container">
+          <input
+            {...register('searchValue', {
+              validate: (value) => {
+                if (!value || (typeof value === "string" && value.trim() === "")) {
+                  return "검색어를 입력해주세요.";
+                }
+                return true;
+              },
+            })}
+            className="input"
+            style={{ maxWidth: '600px', margin: '0 auto', display: 'block' }}
+          />
+        </form>
+      </header>
+
+      <main className="container" style={{ padding: '1.5rem 1rem' }}>
+        <DrinksList initialData={initialData} searchValue={searchValue} />
+      </main>
+    </div>
   );
 };
 
-const DrinksList = ({ searchValue }: { searchValue: string | string[] | undefined }) => {
+const DrinksList = ({ initialData, searchValue }: { initialData: CocktailSearchResponse | null; searchValue: string | string[] | undefined }) => {
   const pathname = usePathname();
-  const { data, isLoading } = useQuery<CocktailSearchResponse>({
-    queryKey: ['search', 'cocktailName', searchValue],
-    enabled: !!searchValue, // searchValue가 있을 때만 쿼리 실행
-  });
-  console.log(data)
-  if (isLoading) return <div>Loading...</div>;
+
+  if (!searchValue) {
+    return (
+      <div className="flex-center" style={{ padding: '4rem 1rem', flexDirection: 'column' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+        <div className="text-muted">검색어를 입력하여 칵테일을 검색하세요</div>
+      </div>
+    );
+  }
+
+  if (!initialData?.drinks?.length) {
+    return (
+      <div className="flex-center" style={{ padding: '4rem 1rem', flexDirection: 'column' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😕</div>
+        <div className="text-muted">검색 결과가 없습니다</div>
+        <div className="text-muted" style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>다른 검색어를 시도해보세요</div>
+      </div>
+    );
+  }
 
   return (
-    <Flex gap='md' 
-    direction="column" w={'90%'} mx={'auto'}>
-      {data?.drinks?.map((elem) => (
-        <Link key={elem.idDrink} href={pathname+`/${elem.idDrink}`}>
-          <Flex styles={{
-            root: {
-              border: '2px solid',
-              borderRadius: '8px',
-            }
-          }}>
-            <Image w={120} h={120}  src={elem.strDrinkThumb+'/preview'} alt={elem.strDrink+'_thumbnail'} 
-              loading="lazy"
-              styles={{
-                root: {
-                  borderTopLeftRadius:'6px',
-                  borderBottomLeftRadius:'6px'
-                }
-              }}
+    <div>
+      <p className="text-muted" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+        {initialData.drinks.length}개의 결과를 찾았습니다
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
+        {initialData.drinks?.map((elem) => (
+          <Link
+            key={elem.idDrink}
+            href={pathname + `/${elem.idDrink}`}
+            className="card"
+            style={{ padding: '0', textDecoration: 'none', overflow: 'hidden' }}
+          >
+            <img
+              src={elem.strDrinkThumb + '/preview'}
+              alt={elem.strDrink}
+              style={{ width: '100%', height: '160px', objectFit: 'cover' }}
             />
-            <Box p={8}>
-              <Title order={4}>{elem.strDrink}</Title>
-              <Text lineClamp={3}>{elem.strInstructions}</Text>
-            </Box>
-          </Flex>
-        </Link>
-      ))}
-    </Flex>
+            <div style={{ padding: '0.75rem' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                {elem.strDrink}
+              </div>
+              <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                {elem.strCategory}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 };
 
