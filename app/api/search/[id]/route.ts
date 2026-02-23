@@ -2,11 +2,15 @@ import { cocktailDBClient, cocktailNinjasClient } from '@/apis/client';
 import { localCocktailRecipes } from '@/data/localRecipes';
 import { CocktailRecipe, CocktailSearchResponse } from '@/types/cocktailTypes';
 import { neon } from '@neondatabase/serverless';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
 const API_NINJAS_KEY = process.env.API_NINJAS_KEY;
 const NINJA_ID_PREFIX = 'ninja-';
 const LOCAL_ID_PREFIX = 'local-';
+const STATIC_ID_PREFIX = 'static-';
+let staticCocktailsCache: CocktailRecipe[] | null = null;
 
 type NinjaCocktailResponse = {
   name?: string;
@@ -186,6 +190,44 @@ const getLocalRecipeById = (idDrink: string): CocktailRecipe | null => {
   return localCocktailRecipes.find((recipe) => recipe.idDrink === idDrink) || null;
 };
 
+const normalizeName = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ');
+
+const getStaticCocktails = async (): Promise<CocktailRecipe[]> => {
+  if (staticCocktailsCache) {
+    return staticCocktailsCache;
+  }
+
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'data.json');
+    const fileRaw = await readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(fileRaw);
+    const drinks = Array.isArray(parsed?.drinks) ? parsed.drinks : [];
+    staticCocktailsCache = drinks as CocktailRecipe[];
+    return staticCocktailsCache;
+  } catch (error) {
+    console.error('Error loading static cocktails from public/data.json:', error);
+    staticCocktailsCache = [];
+    return [];
+  }
+};
+
+const getStaticCocktailById = async (idDrink: string): Promise<CocktailRecipe | null> => {
+  const staticCocktails = await getStaticCocktails();
+  return staticCocktails.find((recipe) => recipe.idDrink === idDrink) || null;
+};
+
+const searchStaticCocktails = async (searchValue: string): Promise<CocktailRecipe[]> => {
+  const staticCocktails = await getStaticCocktails();
+  const query = normalizeName(searchValue);
+  if (!query) return [];
+  return staticCocktails.filter((recipe) => normalizeName(recipe.strDrink).includes(query));
+};
+
 const mapCocktailRecipeRow = (row: Record<string, unknown>): CocktailRecipe => {
   const recipe: CocktailRecipe = {
     idDrink: String(row.iddrink || ''),
@@ -351,7 +393,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   try {
     const isNumericId = /^\d+$/.test(id);
-    const isDetailRequest = id.startsWith(LOCAL_ID_PREFIX) || isNumericId || id.startsWith(NINJA_ID_PREFIX);
+    const isDetailRequest =
+      id.startsWith(LOCAL_ID_PREFIX) ||
+      id.startsWith(STATIC_ID_PREFIX) ||
+      isNumericId ||
+      id.startsWith(NINJA_ID_PREFIX);
 
     if (isDetailRequest) {
       let cocktail = await getCocktailByIdFromDB(id);
@@ -359,9 +405,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       if (!cocktail) {
         if (id.startsWith(LOCAL_ID_PREFIX)) {
           cocktail = getLocalRecipeById(id);
-        } else if (isNumericId) {
+        } else {
+          cocktail = await getStaticCocktailById(id);
+        }
+
+        if (!cocktail && isNumericId) {
           cocktail = await fetchCocktailFromCocktailDBById(id);
-        } else if (id.startsWith(NINJA_ID_PREFIX)) {
+        } else if (!cocktail && id.startsWith(NINJA_ID_PREFIX)) {
           cocktail = await fetchCocktailFromNinjasById(id);
         }
 
@@ -385,19 +435,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       });
     }
 
-    const [dbResults, cocktailDbResults, ninjaResults] = await Promise.all([
+    const [dbResults, staticResults, cocktailDbResults, ninjaResults] = await Promise.all([
       searchCocktailsInDB(id).catch(() => []),
+      searchStaticCocktails(id).catch(() => []),
       searchCocktailsFromCocktailDB(id).catch(() => []),
       searchCocktailsFromNinjas(id).catch(() => []),
     ]);
 
+    const existingNameKeys = new Set(
+      [...dbResults, ...staticResults].map((recipe) => normalizeName(recipe.strDrink || '')),
+    );
+    const externalRecipes = [...cocktailDbResults, ...ninjaResults].filter((recipe) => {
+      const nameKey = normalizeName(recipe.strDrink || '');
+      return nameKey && !existingNameKeys.has(nameKey);
+    });
     const dbIds = new Set(dbResults.map((recipe) => recipe.idDrink));
-    const externalRecipes = [...cocktailDbResults, ...ninjaResults];
 
     void saveMissingRecipesToDB(externalRecipes, dbIds);
 
-    const allRecipes = [...dbResults];
-    const existingIds = new Set(dbResults.map((recipe) => recipe.idDrink));
+    const allRecipes = [...dbResults, ...staticResults];
+    const existingIds = new Set(allRecipes.map((recipe) => recipe.idDrink));
 
     for (const recipe of externalRecipes) {
       if (!existingIds.has(recipe.idDrink)) {

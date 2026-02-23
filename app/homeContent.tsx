@@ -1,9 +1,10 @@
 'use client';
 
-import { fetchCocktailsByMultipleIngredients, fetchCocktailRecipe } from '@/apis/cocktailDB';
+import { client } from '@/apis/client';
 import { searchLocalRecipes } from '@/data/localRecipes';
 import { useInventory } from '@/hooks/useInventory';
 import { getIngredientsFromCocktail, getRequiredOwnedIngredients, isAlcoholIngredient, isIngredientAvailable } from '@/lib/ingredientMatcher';
+import { CocktailRecipe } from '@/types/cocktailTypes';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 
@@ -98,29 +99,24 @@ export default function HomeContent() {
 
       let apiRecipes: CocktailWithIngredients[] = [];
       if (userAlcoholIngredients.length > 0) {
-        const apiResults = await fetchCocktailsByMultipleIngredients(userAlcoholIngredients);
-        
-        const cocktailIds = apiResults.map(r => r.idDrink);
-        const fullRecipes = await Promise.all(
-          cocktailIds.slice(0, 10).map(id => fetchCocktailRecipe(id))
-        );
+        const response = await client.get<{ drinks: CocktailRecipe[] }>('/api/available', {
+          params: {
+            ingredients: userAlcoholIngredients.join(','),
+          },
+        });
 
-        apiRecipes = fullRecipes
-          .filter((r): r is NonNullable<typeof r> => r !== null && r !== undefined)
-          .filter(r => r.drinks?.[0])
-          .map(r => {
-            const drink = r.drinks![0];
-            return {
-              id: drink.idDrink,
-              name: drink.strDrink,
-              image: drink.strDrinkThumb,
-              ingredients: getIngredientsFromCocktail(drink as unknown as Record<string, unknown>),
-            };
-          })
-          .filter(cocktail => {
+        const drinks = response.data?.drinks || [];
+        apiRecipes = drinks
+          .map((drink) => ({
+            id: drink.idDrink,
+            name: drink.strDrink,
+            image: drink.strDrinkThumb,
+            ingredients: getIngredientsFromCocktail(drink as unknown as Record<string, unknown>),
+          }))
+          .filter((cocktail) => {
             const required = getRequiredOwnedIngredients(cocktail.ingredients);
             if (required.length === 0) return false;
-            return required.every(ing => isIngredientAvailable(ing, userAlcoholIngredients));
+            return required.every((ing) => isIngredientAvailable(ing, userAlcoholIngredients));
           });
       }
 
