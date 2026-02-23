@@ -16,8 +16,9 @@ interface CocktailWithIngredients {
   ingredients: string[];
 }
 
-const CACHE_KEY = 'availableCocktailsCache_v3';
+const CACHE_KEY = 'homeAvailableCocktailsCache_v1';
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const LEGACY_CACHE_PREFIXES = ['availableCocktailsCache_', 'availableCocktailsCache_v3_'];
 
 const getCachedData = (key: string) => {
   try {
@@ -42,21 +43,41 @@ const setCachedData = (key: string, data: unknown) => {
   }
 };
 
+const clearLegacyHomeCaches = () => {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (LEGACY_CACHE_PREFIXES.some(prefix => key.startsWith(prefix))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch (e) {
+    console.error('Cache cleanup error:', e);
+  }
+};
+
 export default function HomeContent() {
   const { items, isLoaded } = useInventory();
   const [recipes, setRecipes] = useState<CocktailWithIngredients[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadRecipes = useCallback(async () => {
+    clearLegacyHomeCaches();
+
     const cacheKey = `${CACHE_KEY}_${items.map(i => i.id).sort().join('_')}`;
     const cached = getCachedData(cacheKey);
+    const hasCached = Array.isArray(cached) && cached.length > 0;
     
-    if (cached) {
+    if (hasCached) {
       setRecipes(cached);
-      return;
     }
 
-    setLoading(true);
+    if (!hasCached) {
+      setLoading(true);
+    }
 
     const userIngredients = items
       .map(item => (item.nameEn || item.name || '').toLowerCase().trim())
@@ -143,7 +164,9 @@ export default function HomeContent() {
       setRecipes(result);
     } catch (error) {
       console.error('Failed to load home cocktails:', error);
-      setRecipes([]);
+      if (!hasCached) {
+        setRecipes([]);
+      }
     } finally {
       setLoading(false);
     }

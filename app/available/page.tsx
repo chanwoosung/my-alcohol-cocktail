@@ -23,8 +23,9 @@ interface CocktailWithIngredients {
   ingredients?: string[];
 }
 
-const CACHE_KEY = 'availableCocktailsCache_v3';
+const CACHE_KEY = 'availableCocktailsPageCache_v1';
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const LEGACY_CACHE_PREFIXES = ['availableCocktailsCache_', 'availableCocktailsCache_v3_', 'homeAvailableCocktailsCache_'];
 
 const getCachedData = (key: string) => {
   try {
@@ -49,6 +50,22 @@ const setCachedData = (key: string, data: unknown) => {
   }
 };
 
+const clearLegacyAvailableCaches = () => {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (LEGACY_CACHE_PREFIXES.some(prefix => key.startsWith(prefix))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch (e) {
+    console.error('Cache cleanup error:', e);
+  }
+};
+
 export default function AvailablePage() {
   const { items, isLoaded } = useInventory();
   const [recipes, setRecipes] = useState<CocktailWithIngredients[]>([]);
@@ -56,20 +73,24 @@ export default function AvailablePage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadRecipes = useCallback(async () => {
+    clearLegacyAvailableCaches();
+
     const cacheKey = `${CACHE_KEY}_${items
       .map(i => i.id)
       .sort()
       .join('_')}`;
     const cached = getCachedData(cacheKey);
+    const hasCached = Array.isArray(cached) && cached.length > 0;
 
-    if (cached) {
+    if (hasCached) {
       setRecipes(cached);
       setLoading(false);
       setError(null);
-      return;
     }
 
-    setLoading(true);
+    if (!hasCached) {
+      setLoading(true);
+    }
     setError(null);
 
     const userIngredients = items
@@ -165,7 +186,9 @@ export default function AvailablePage() {
       setRecipes(unique);
     } catch (error) {
       console.error('Failed to load available cocktails:', error);
-      setRecipes([]);
+      if (!hasCached) {
+        setRecipes([]);
+      }
       setError('칵테일 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
