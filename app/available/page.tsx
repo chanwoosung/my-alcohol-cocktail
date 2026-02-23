@@ -3,10 +3,16 @@
 import { client } from '@/apis/client';
 import { searchLocalRecipes } from '@/data/localRecipes';
 import { useInventory } from '@/hooks/useInventory';
-import { getIngredientsFromCocktail, getRequiredOwnedIngredients, isAlcoholIngredient, isIngredientAvailable } from '@/lib/ingredientMatcher';
+import {
+  getIngredientsFromCocktail,
+  getRequiredOwnedIngredients,
+  isAlcoholIngredient,
+  isIngredientAvailable,
+} from '@/lib/ingredientMatcher';
+import { getAvailableFromStaticData } from '@/lib/staticAvailableFallback';
 import { CocktailRecipe } from '@/types/cocktailTypes';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface CocktailWithIngredients {
   id: string;
@@ -50,9 +56,12 @@ export default function AvailablePage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadRecipes = useCallback(async () => {
-    const cacheKey = `${CACHE_KEY}_${items.map(i => i.id).sort().join('_')}`;
+    const cacheKey = `${CACHE_KEY}_${items
+      .map(i => i.id)
+      .sort()
+      .join('_')}`;
     const cached = getCachedData(cacheKey);
-    
+
     if (cached) {
       setRecipes(cached);
       setLoading(false);
@@ -63,17 +72,18 @@ export default function AvailablePage() {
     setLoading(true);
     setError(null);
 
-    const userIngredients = items.map(item => item.nameEn.toLowerCase());
-    const userAlcoholIngredients = userIngredients.filter((ingredient) => isAlcoholIngredient(ingredient));
+    const userIngredients = items
+      .map(item => (item.nameEn || item.name || '').toLowerCase().trim())
+      .filter(Boolean);
+    const userAlcoholIngredients = userIngredients.filter(ingredient => isAlcoholIngredient(ingredient));
     try {
-      const localRecipes = searchLocalRecipes(userIngredients)
-        .map(recipe => ({
-          id: recipe.idDrink,
-          name: recipe.strDrink,
-          image: recipe.strDrinkThumb,
-          category: recipe.strCategory || 'Local',
-          ingredients: getIngredientsFromCocktail(recipe as unknown as Record<string, unknown>),
-        }));
+      const localRecipes = searchLocalRecipes(userIngredients).map(recipe => ({
+        id: recipe.idDrink,
+        name: recipe.strDrink,
+        image: recipe.strDrinkThumb,
+        category: recipe.strCategory || 'Local',
+        ingredients: getIngredientsFromCocktail(recipe as unknown as Record<string, unknown>),
+      }));
 
       const availableLocal = localRecipes.filter(cocktail => {
         const required = getRequiredOwnedIngredients(cocktail.ingredients);
@@ -86,13 +96,15 @@ export default function AvailablePage() {
       if (customData) {
         try {
           const parsed = JSON.parse(customData);
-          customRecipes = parsed.map((r: { id: string; name: string; image: string; ingredients: { name: string }[] }) => ({
-            id: r.id,
-            name: r.name,
-            image: r.image,
-            category: 'Custom',
-            ingredients: r.ingredients?.map((i: { name: string }) => i.name.toLowerCase()) || [],
-          }));
+          customRecipes = parsed.map(
+            (r: { id: string; name: string; image: string; ingredients: { name: string }[] }) => ({
+              id: r.id,
+              name: r.name,
+              image: r.image,
+              category: 'Custom',
+              ingredients: r.ingredients?.map((i: { name: string }) => i.name.toLowerCase()) || [],
+            }),
+          );
         } catch (error) {
           console.error('Failed to parse custom recipes:', error);
         }
@@ -106,15 +118,25 @@ export default function AvailablePage() {
 
       let apiRecipes: CocktailWithIngredients[] = [];
       if (userAlcoholIngredients.length > 0) {
-        const response = await client.get<{ drinks: CocktailRecipe[] }>('/api/available', {
-          params: {
-            ingredients: userAlcoholIngredients.join(','),
-          },
-        });
+        let drinks: CocktailRecipe[] = [];
+        try {
+          const response = await client.get<{ drinks: CocktailRecipe[] }>('/api/available', {
+            params: {
+              ingredients: userAlcoholIngredients.join(','),
+            },
+            timeout: 5000,
+          });
+          drinks = response.data?.drinks || [];
+        } catch (apiError) {
+          console.error('Failed to fetch /api/available:', apiError);
+        }
 
-        const drinks = response.data?.drinks || [];
+        if (drinks.length === 0) {
+          drinks = await getAvailableFromStaticData(userAlcoholIngredients);
+        }
+
         apiRecipes = drinks
-          .map((drink) => ({
+          .map(drink => ({
             id: drink.idDrink,
             name: drink.strDrink,
             image: drink.strDrinkThumb,
@@ -122,13 +144,13 @@ export default function AvailablePage() {
             source: 'api' as const,
             ingredients: getIngredientsFromCocktail(drink as unknown as Record<string, unknown>),
           }))
-          .filter((cocktail) => {
+          .filter(cocktail => {
             const required = getRequiredOwnedIngredients(cocktail.ingredients);
             if (required.length === 0) return false;
-            return required.every((ing) => isIngredientAvailable(ing, userAlcoholIngredients));
+            return required.every(ing => isIngredientAvailable(ing, userAlcoholIngredients));
           });
       }
-
+      console.log(apiRecipes);
       const allRecipes = [
         ...availableLocal.map(r => ({ ...r, source: 'local' as const })),
         ...availableCustom.map(r => ({ ...r, source: 'custom' as const })),
@@ -157,36 +179,40 @@ export default function AvailablePage() {
 
   const getSourceLabel = (source: 'local' | 'api' | 'custom') => {
     switch (source) {
-      case 'local': return '로컬';
-      case 'custom': return '내 레시피';
-      case 'api': return 'API';
+      case 'local':
+        return '로컬';
+      case 'custom':
+        return '내 레시피';
+      case 'api':
+        return 'API';
     }
   };
 
   if (!isLoaded || loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="text-muted">Loading...</div>
+        <div className="text-muted">칵테일 레시피 가져오는 중...</div>
       </div>
     );
   }
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      <header style={{
-        borderBottom: '1px solid var(--border)',
-        padding: '1.5rem 1rem',
-        background: 'var(--card)',
-      }}>
+      <header
+        style={{
+          borderBottom: '1px solid var(--border)',
+          padding: '1.5rem 1rem',
+          background: 'var(--card)',
+        }}>
         <div className="container">
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            제작 가능한 칵테일
-          </h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>제작 가능한 칵테일</h1>
           <p className="text-muted" style={{ fontSize: '0.875rem' }}>
             가지고 있는 술로 만들 수 있는 칵테일 목록입니다
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-            <span className="text-muted" style={{ fontSize: '0.75rem' }}>보유:</span>
+            <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+              보유:
+            </span>
             {items.length > 0 ? (
               items.map(item => (
                 <span key={item.id} className="badge badge-secondary" style={{ fontSize: '0.7rem' }}>
@@ -194,7 +220,9 @@ export default function AvailablePage() {
                 </span>
               ))
             ) : (
-              <span className="text-muted" style={{ fontSize: '0.75rem' }}>없음</span>
+              <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                없음
+              </span>
             )}
           </div>
         </div>
@@ -226,11 +254,7 @@ export default function AvailablePage() {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
               {recipes.map(recipe => (
-                <Link
-                  key={recipe.id}
-                  href={`/search/${recipe.id}`}
-                  style={{ textDecoration: 'none' }}
-                >
+                <Link key={recipe.id} href={`/search/${recipe.id}`} style={{ textDecoration: 'none' }}>
                   <div className="card" style={{ padding: '0', overflow: 'hidden', cursor: 'pointer' }}>
                     <img
                       src={recipe.image}

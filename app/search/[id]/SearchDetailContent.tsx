@@ -9,7 +9,6 @@ import { useEffect, useState } from 'react';
 
 type Props = {
   initialData: CocktailSearchResponse | null;
-  slug: string;
 };
 
 interface Ingredient {

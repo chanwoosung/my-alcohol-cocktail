@@ -1,13 +1,40 @@
-import { NextConfig } from "next";
-import withPWA from "next-pwa"; // next-pwa import
+import withPWA from "next-pwa";
 
-const nextConfig: NextConfig = {
-  /* 다른 Next.js 옵션 추가 가능 */
+const nextConfig = {
+  reactStrictMode: true,
 };
 
-export default withPWA({
-  ...nextConfig, // 기존 설정 확장
-    dest: "public", // PWA 파일의 출력 경로
-    register: true, // 서비스 워커 자동 등록
-    skipWaiting: true, // 이전 서비스 워커를 건너뛰고 새로운 서비스 워커를 활성화
-});
+const pwa = withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === "development",
+  runtimeCaching: [
+    {
+      urlPattern: /\/api\/available(\?.*)?$/i,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "api-available",
+        networkTimeoutSeconds: 2,
+        expiration: {
+          maxEntries: 40,
+          maxAgeSeconds: 60 * 10,
+        },
+      },
+    },
+    {
+      urlPattern: /\/api\/search\/.+/i,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "api-search-detail",
+        networkTimeoutSeconds: 3,
+        expiration: {
+          maxEntries: 80,
+          maxAgeSeconds: 60 * 60 * 24,
+        },
+      },
+    },
+  ],
+}) as (config: typeof nextConfig) => typeof nextConfig;
+
+export default pwa(nextConfig);

@@ -246,6 +246,7 @@ const fetchCocktailDbLookup = async (idDrink: string): Promise<CocktailRecipe | 
   try {
     const response = await cocktailDBClient.get<CocktailSearchResponse>('/lookup.php', {
       params: { i: idDrink },
+      timeout: 2500,
     });
     return response.data?.drinks?.[0] || null;
   } catch (error) {
@@ -256,10 +257,13 @@ const fetchCocktailDbLookup = async (idDrink: string): Promise<CocktailRecipe | 
 
 const fetchExternalCocktailsByIngredients = async (ingredients: string[]): Promise<CocktailRecipe[]> => {
   const ids = new Set<string>();
-  for (const ingredient of ingredients) {
+  const prioritizedIngredients = Array.from(new Set(ingredients)).slice(0, 6);
+
+  for (const ingredient of prioritizedIngredients) {
     try {
       const response = await cocktailDBClient.get<{ drinks: Array<{ idDrink: string }> | null }>('/filter.php', {
         params: { i: ingredient },
+        timeout: 2000,
       });
       const drinks = response.data?.drinks || [];
       drinks.forEach((drink) => {
@@ -270,9 +274,16 @@ const fetchExternalCocktailsByIngredients = async (ingredients: string[]): Promi
     }
   }
 
-  const lookupIds = Array.from(ids).slice(0, 120);
-  const results = await Promise.all(lookupIds.map((idDrink) => fetchCocktailDbLookup(idDrink)));
-  return results.filter((recipe): recipe is CocktailRecipe => recipe !== null);
+  if (!ids.size) {
+    return [];
+  }
+
+  const lookupIds = Array.from(ids).slice(0, 40);
+  const settled = await Promise.allSettled(lookupIds.map((idDrink) => fetchCocktailDbLookup(idDrink)));
+  return settled
+    .filter((result): result is PromiseFulfilledResult<CocktailRecipe | null> => result.status === 'fulfilled')
+    .map((result) => result.value)
+    .filter((recipe): recipe is CocktailRecipe => recipe !== null);
 };
 
 const filterAvailableCocktails = (recipes: CocktailRecipe[], userAlcoholIngredients: string[]): CocktailRecipe[] => {
@@ -308,13 +319,29 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   try {
-    const [dbCocktails, staticCocktails, externalCocktails] = await Promise.all([
+    const [dbCocktails, staticCocktails] = await Promise.all([
       fetchDbCocktails(),
       getStaticCocktails(),
-      fetchExternalCocktailsByIngredients(userAlcoholIngredients),
     ]);
 
-    const merged = [...dbCocktails, ...staticCocktails, ...externalCocktails];
+    const baseMerged = [...dbCocktails, ...staticCocktails];
+    const baseDedupedByName = new Map<string, CocktailRecipe>();
+    for (const recipe of baseMerged) {
+      const key = normalizeName(recipe.strDrink || '');
+      if (!key || baseDedupedByName.has(key)) continue;
+      baseDedupedByName.set(key, recipe);
+    }
+
+    const baseAvailable = filterAvailableCocktails(Array.from(baseDedupedByName.values()), userAlcoholIngredients);
+    if (baseAvailable.length >= 120) {
+      return new Response(JSON.stringify({ drinks: baseAvailable.slice(0, 300) }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=1800' },
+        status: 200,
+      });
+    }
+
+    const externalCocktails = await fetchExternalCocktailsByIngredients(userAlcoholIngredients);
+    const merged = [...baseMerged, ...externalCocktails];
     const dedupedByName = new Map<string, CocktailRecipe>();
     for (const recipe of merged) {
       const key = normalizeName(recipe.strDrink || '');

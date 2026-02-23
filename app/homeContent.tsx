@@ -4,6 +4,7 @@ import { client } from '@/apis/client';
 import { searchLocalRecipes } from '@/data/localRecipes';
 import { useInventory } from '@/hooks/useInventory';
 import { getIngredientsFromCocktail, getRequiredOwnedIngredients, isAlcoholIngredient, isIngredientAvailable } from '@/lib/ingredientMatcher';
+import { getAvailableFromStaticData } from '@/lib/staticAvailableFallback';
 import { CocktailRecipe } from '@/types/cocktailTypes';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
@@ -57,7 +58,9 @@ export default function HomeContent() {
 
     setLoading(true);
 
-    const userIngredients = items.map(item => item.nameEn.toLowerCase());
+    const userIngredients = items
+      .map(item => (item.nameEn || item.name || '').toLowerCase().trim())
+      .filter(Boolean);
     const userAlcoholIngredients = userIngredients.filter((ingredient) => isAlcoholIngredient(ingredient));
 
     try {
@@ -99,13 +102,23 @@ export default function HomeContent() {
 
       let apiRecipes: CocktailWithIngredients[] = [];
       if (userAlcoholIngredients.length > 0) {
-        const response = await client.get<{ drinks: CocktailRecipe[] }>('/api/available', {
-          params: {
-            ingredients: userAlcoholIngredients.join(','),
-          },
-        });
+        let drinks: CocktailRecipe[] = [];
+        try {
+          const response = await client.get<{ drinks: CocktailRecipe[] }>('/api/available', {
+            params: {
+              ingredients: userAlcoholIngredients.join(','),
+            },
+            timeout: 5000,
+          });
+          drinks = response.data?.drinks || [];
+        } catch (apiError) {
+          console.error('Failed to fetch /api/available:', apiError);
+        }
 
-        const drinks = response.data?.drinks || [];
+        if (drinks.length === 0) {
+          drinks = await getAvailableFromStaticData(userAlcoholIngredients);
+        }
+
         apiRecipes = drinks
           .map((drink) => ({
             id: drink.idDrink,
@@ -144,7 +157,7 @@ export default function HomeContent() {
   if (!isLoaded) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="text-muted">Loading...</div>
+        <div className="text-muted">칵테일 레시피 가져오는 중...</div>
       </div>
     );
   }
@@ -234,7 +247,7 @@ export default function HomeContent() {
 
             {loading ? (
               <div style={{ textAlign: 'center', padding: '2rem' }}>
-                <div className="text-muted">Loading...</div>
+                <div className="text-muted">칵테일 레시피 가져오는 중...</div>
               </div>
             ) : recipes.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>

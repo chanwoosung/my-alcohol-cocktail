@@ -3,6 +3,7 @@
 import { CocktailSearchResponse } from "@/types/cocktailTypes";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 
 type Props = {
@@ -16,6 +17,7 @@ type Form = {
 
 const SearchPageContent = ({ initialData, searchValue }: Props) => {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const { register, handleSubmit } = useForm<Form>({
     defaultValues: {
@@ -25,7 +27,9 @@ const SearchPageContent = ({ initialData, searchValue }: Props) => {
   });
 
   const onSubmit = (data: Form) => {
-    router.replace(window.location.pathname + `?searchValue=${data.searchValue}`);
+    startTransition(() => {
+      router.replace(window.location.pathname + `?searchValue=${data.searchValue}`);
+    });
   };
 
   return (
@@ -50,7 +54,13 @@ const SearchPageContent = ({ initialData, searchValue }: Props) => {
             })}
             className="input"
             style={{ maxWidth: '600px', margin: '0 auto', display: 'block' }}
+            disabled={isPending}
           />
+          {isPending && (
+            <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.4rem', textAlign: 'center' }}>
+              칵테일 레시피 가져오는 중...
+            </p>
+          )}
         </form>
       </header>
 
