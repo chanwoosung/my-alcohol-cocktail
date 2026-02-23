@@ -229,6 +229,10 @@ const searchStaticCocktails = async (searchValue: string): Promise<CocktailRecip
 };
 
 const mapCocktailRecipeRow = (row: Record<string, unknown>): CocktailRecipe => {
+  type IngredientIndex = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+  type IngredientKey = `strIngredient${IngredientIndex}`;
+  type MeasureKey = `strMeasure${IngredientIndex}`;
+
   const recipe: CocktailRecipe = {
     idDrink: String(row.iddrink || ''),
     strDrink: String(row.strdrink || ''),
@@ -287,8 +291,10 @@ const mapCocktailRecipeRow = (row: Record<string, unknown>): CocktailRecipe => {
   for (let i = 1; i <= 15; i++) {
     const ingredient = row[`stringredient${i}`];
     const measure = row[`strmeasure${i}`];
-    recipe[`strIngredient${i}` as keyof CocktailRecipe] = ingredient ? String(ingredient) : null;
-    recipe[`strMeasure${i}` as keyof CocktailRecipe] = measure ? String(measure) : null;
+    const ingredientKey = `strIngredient${i}` as IngredientKey;
+    const measureKey = `strMeasure${i}` as MeasureKey;
+    recipe[ingredientKey] = ingredient ? String(ingredient) : null;
+    recipe[measureKey] = measure ? String(measure) : null;
   }
 
   return recipe;
